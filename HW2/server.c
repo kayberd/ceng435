@@ -8,7 +8,8 @@
 #include "lib.h"
 #include <time.h>
 
-#define PORT	 1881
+#define SERV_PORT	 1881
+#define CLI_PORT	 1938
 #define MAX_PACKET_NUM 1000
 
 // Driver code
@@ -19,7 +20,8 @@ pthread_mutex_t inp_buffer_write_lock = PTHREAD_MUTEX_INITIALIZER;
 char* inp_buffer;
 char* out_buffer;
 
-int sockfd;
+int send_sockfd;
+int recv_sockfd;
 struct sockaddr_in servaddr, cliaddr;
 PacketArrayNode inp_window[MAX_PACKET_NUM];
 PacketArrayNode out_window[MAX_PACKET_NUM];
@@ -31,22 +33,36 @@ void* server_sender(){
 	/*
 		Şu an dümdüz inputu yolluyor sender.
 	*/
-	//pthread_mutex_lock(&inp_buffer_write_lock);
-	int packet_count = msg_to_packet(out_buffer,out_window); 
-	int len_cliaddr = sizeof(cliaddr); //len is value/resuslt
-	for(int i=0;i<packet_count;i++){
-		sendto(sockfd, (Packet*)&(out_window[i].packet),sizeof(Packet),MSG_CONFIRM,(const struct sockaddr *) &cliaddr,len_cliaddr);
-		sleep(0.2);
+	printf("Welcome to CHATWORK435 (SERVER)!!!\n");
+	printf("Type 'BYE' to quit, press 'ENTER' to send\n");
+
+	
+
+	//FILE* fp = fopen("error.txt","w"); 
+    //printf()
+	while(1){
+		//fflush(stdin);
+		out_buffer=read_stdin();
+		sleep(0.1);
+		int packet_count = msg_to_packet(out_buffer,out_window);
+
+		
+		for(int i=0;i<packet_count;i++){
+			//fprintf(fp,"test31\n");
+			//fprintf(fp,"%c",out_window[i].packet.data[0]);	
+			//print_packet(fp,&(out_window[i].packet));
+			//sendto(sockfd,(char*)hello,strlen(hello),0,(const struct sockaddr*)&servaddr,sizeof(servaddr));
+			sendto(send_sockfd, &(out_window[i].packet),sizeof(Packet),0,(const struct sockaddr *) &cliaddr,sizeof(cliaddr));
+			//sleep(0.2);
+		}
 	}
-	printf("Hello message sent.\n");
-	while(1);
 }
 
 void* server_receiver(){
 	char* msg;
 	Packet packet;
-	socklen_t len_cliaddr = sizeof(cliaddr);
-	FILE* fp = fopen("server.txt","w");
+	socklen_t len_serv = sizeof(servaddr);
+	//FILE* fp = fopen("server.txt","w");
 	
 	while(1){
 		
@@ -54,10 +70,13 @@ void* server_receiver(){
 		//packet.data[0] = 'b';
 		//printf("31");
 		//recvfrom(sockfd, (char *)buffer,20,MSG_WAITALL, ( struct sockaddr *) &cliaddr,&len_cliaddr);
-		recvfrom(sockfd, (Packet *)&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &cliaddr,&len_cliaddr);
+		recvfrom(recv_sockfd, (Packet *)&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &servaddr,&len_serv);
 		//print_packet(stdout,&packet);
 		//sleep(0.1);
+		//printf("Her>>");
+		//fflush(stdout);
 		print_msg(stdout,packet_to_msg(&packet));
+		//fflush(stdout);
 		//fflush(stdout);
 		//fflush(stdout);
 		//fflush(stdout);
@@ -71,7 +90,7 @@ void* server_receiver(){
 		//while(1) printf("31");
 		//sleep(31);
 	}
-	fclose(fp);
+	//fclose(fp);
 	
 }
 void* stdin_reader(){
@@ -95,7 +114,11 @@ int main() {
 
 	pthread_t server_sender_th,server_receiver_th,stdin_reader_th;
 	// Creating socket file descriptor
-	if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+	if ( (recv_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+		perror("Socket Creation Failed");
+		exit(EXIT_FAILURE);
+	}
+	if ( (send_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
 		perror("Socket Creation Failed");
 		exit(EXIT_FAILURE);
 	}
@@ -107,10 +130,15 @@ int main() {
 	// Filling server information
 	servaddr.sin_family = AF_INET; // IPv4
 	servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	servaddr.sin_port = htons(PORT);
+	servaddr.sin_port = htons(SERV_PORT);
+
+	cliaddr.sin_family = AF_INET; // IPv4
+	cliaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	cliaddr.sin_port = htons(CLI_PORT);
+
 	
 	// Bind the socket with the server address
-	if ( bind(sockfd, (const struct sockaddr *)&servaddr,sizeof(servaddr)) < 0 )
+	if ( bind(recv_sockfd, (const struct sockaddr *)&servaddr,sizeof(servaddr)) < 0 )
 	{
 		perror("Bind Failed");
 		exit(EXIT_FAILURE);
@@ -118,11 +146,11 @@ int main() {
 
 	//pthread_create(&stdin_reader_th,NULL,stdin_reader,NULL);
 	//pthread_join(stdin_reader_th,NULL);
-	//pthread_create(&server_sender_th,NULL,server_sender,NULL);
+	pthread_create(&server_sender_th,NULL,server_sender,NULL);
 	pthread_create(&server_receiver_th,NULL,server_receiver,NULL);
 	//pthread_create(&stdin_reader_th,NULL,stdin_reader,NULL);
 
-	//pthread_join(server_sender_th,NULL);
+	pthread_join(server_sender_th,NULL);
 	pthread_join(server_receiver_th,NULL);
 	//pthread_join(stdin_reader_th,NULL);
 
