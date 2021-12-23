@@ -37,6 +37,8 @@ Packet* make_packet(int seq_no,,char* data){
     Below code is taken from https://gist.github.com/1995eaton/06ee2dfe7f83ce0d2e7d
     It reads a stdin for dynamic buffer value
 */
+char* packet_to_msg(Packet*);
+void print_packet(FILE*,Packet*);
 static char* read_stdin (void)
 {
   size_t cap = 4096, /* Initial capacity for the char buffer */
@@ -61,7 +63,8 @@ static char* read_stdin (void)
   //buffer = (char*) realloc(buffer, (len + 1) * sizeof (char));
 
   /* Pad the last byte so we don't overread the buffer in the future */
-  buffer[len] = '\0';
+  buffer[len] = '\n';
+  buffer[len+1] = '\0';
 
   return buffer;
 }
@@ -71,7 +74,7 @@ int msg_to_packet(char* msg,PacketArrayNode* packets){
     int packet_count = (int) ceil(strlen(msg)/8.0);
     
     //packet_count = 31;
-    FILE* fp = fopen("error2.txt","w");
+    //FILE* fp = fopen("error2.txt","w");
     /*fprintf(fp,"%d",packet_count);
     fclose(fp);
     while(1);    */
@@ -83,24 +86,30 @@ int msg_to_packet(char* msg,PacketArrayNode* packets){
         for(int j=0;j<MAX_DATA_SIZE;j++){
             (packets)[i].packet.data[j] = msg[i*8+j];
         }
-        print_packet(fp,&(packets[i].packet));
+        //print_packet(fp,&(packets[i].packet));
   
         //fprintf(fp,"%s",packets[i].packet.data);   
     }
 
-    fclose(fp);
+    //fclose(fp);
     //while(1);
     return packet_count;
 }
 
-void packet_to_msg(Packet* packet,char* msg){
-    msg = (char*) malloc(sizeof(char)*MAX_DATA_SIZE);
+char* packet_to_msg(Packet* packet){
+    char* msg = (char*) malloc(sizeof(char)*MAX_DATA_SIZE);
     for(int i=0;i<MAX_DATA_SIZE;i++){
         msg[i] = packet->data[i];
     }
+    return msg;
 }
 
 void print_packet(FILE* fp,Packet* packet){
     fprintf(fp,"(seq:%d,ack:%d,%c%c%c%c%c%c%c%c)\n",packet->seq_no,packet->ack_no,packet->data[0],packet->data[1],packet->data[2],packet->data[3],packet->data[4],packet->data[5],packet->data[6],packet->data[7]);
+}
+void print_msg(FILE* stream,char* msg){
+    if(strlen(msg))
+        for(int i=0;i<MAX_DATA_SIZE;i++)
+            fprintf(stream,"%c",msg[i]);
 }
 #endif //__LIB.H___

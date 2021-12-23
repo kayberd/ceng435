@@ -8,8 +8,8 @@
 #include "lib.h"
 #include <time.h>
 
-#define PORT	 3000
-#define MAX_PACKET_NUM 1024
+#define PORT	 1881
+#define MAX_PACKET_NUM 1000
 
 // Driver code
 
@@ -46,20 +46,33 @@ void* server_receiver(){
 	char* msg;
 	Packet packet;
 	socklen_t len_cliaddr = sizeof(cliaddr);
-	char buffer[200];
-	FILE* fp;
+	FILE* fp = fopen("server.txt","w");
+	
 	while(1){
-		//fopen("server.txt","a");
+		
 		//Packet packet;
 		//packet.data[0] = 'b';
 		//printf("31");
 		//recvfrom(sockfd, (char *)buffer,20,MSG_WAITALL, ( struct sockaddr *) &cliaddr,&len_cliaddr);
 		recvfrom(sockfd, (Packet *)&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &cliaddr,&len_cliaddr);
-		print_packet(stdout,&packet);
+		//print_packet(stdout,&packet);
+		//sleep(0.1);
+		print_msg(stdout,packet_to_msg(&packet));
+		//fflush(stdout);
+		//fflush(stdout);
+		//fflush(stdout);
+		//fflush(stdout);
+		//sleep(0.1);
+		//sleep(0.3);
 		//fclose(fp);
+		//break;
+		//fprintf(fp,"%s",msg);
+		
 		//while(1) printf("31");
 		//sleep(31);
 	}
+	fclose(fp);
+	
 }
 void* stdin_reader(){
 	

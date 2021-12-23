@@ -8,8 +8,8 @@
 #include "lib.h"
 #include <time.h>
 
-#define PORT	 3000
-#define MAX_PACKET_NUM 10
+#define PORT	 1881
+#define MAX_PACKET_NUM 1000
 
 // Driver code
 
@@ -31,10 +31,20 @@ void client_sender(){
 	/*
 		Şu an dümdüz inputu yolluyor sender.
 	*/
-	int packet_count = msg_to_packet(out_buffer,out_window);
+	printf("Welcome to CHATWORK435 !!!\n");
+	printf("Type 'BYE' to quit, press 'ENTER' to send\n");
+
+	
+
 	FILE* fp = fopen("error.txt","w"); 
     //printf()
-	//while(1){
+	while(1){
+		//fflush(stdin);
+		out_buffer=read_stdin();
+		sleep(0.1);
+		int packet_count = msg_to_packet(out_buffer,out_window);
+
+		
 		for(int i=0;i<packet_count;i++){
 			//fprintf(fp,"test31\n");
 			//fprintf(fp,"%c",out_window[i].packet.data[0]);	
@@ -43,7 +53,7 @@ void client_sender(){
 			sendto(sockfd, &(out_window[i].packet),sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
 			//sleep(0.2);
 		}
-	//}
+	}
 	//printf("Hello message sent.\n");
 }
 
@@ -54,7 +64,7 @@ void client_receiver(){
 	
 	while(1){
 		recvfrom(sockfd, (Packet *)&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &servaddr,&len_serv_addr);
-		packet_to_msg(&packet,msg);
+		msg = packet_to_msg(&packet);
 		printf("%s",msg);
 	}
 }
@@ -62,10 +72,7 @@ void stdin_reader(){
 	
 
 
-	printf("Welcome to CHATWORK435 !!!\n");
-	printf("Type 'BYE' to quit, press 'ENTER' to send\n");
 
-	out_buffer=read_stdin();
     //printf("%s",out_buffer);
 
 	
@@ -102,8 +109,8 @@ int main() {
 	}*/
 	
 
-    pthread_create(&stdin_reader_th,NULL,(void*)stdin_reader,NULL);
-	pthread_join(stdin_reader_th,NULL);
+    //pthread_create(&stdin_reader_th,NULL,(void*)stdin_reader,NULL);
+	//pthread_join(stdin_reader_th,NULL);
     pthread_create(&client_sender_th,NULL,(void*)client_sender,NULL);
 	//pthread_create(&client_receiver_th,NULL,(void*)client_receiver,NULL);
 	
