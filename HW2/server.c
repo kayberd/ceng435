@@ -47,12 +47,18 @@ void* server_receiver(){
 	Packet packet;
 	socklen_t len_cliaddr = sizeof(cliaddr);
 	char buffer[200];
+	FILE* fp;
 	while(1){
+		//fopen("server.txt","a");
+		//Packet packet;
+		//packet.data[0] = 'b';
 		//printf("31");
 		//recvfrom(sockfd, (char *)buffer,20,MSG_WAITALL, ( struct sockaddr *) &cliaddr,&len_cliaddr);
 		recvfrom(sockfd, (Packet *)&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &cliaddr,&len_cliaddr);
-		packet_to_msg(&packet,msg);
-		printf("%s",buffer);
+		print_packet(stdout,&packet);
+		//fclose(fp);
+		//while(1) printf("31");
+		//sleep(31);
 	}
 }
 void* stdin_reader(){

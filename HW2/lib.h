@@ -18,7 +18,7 @@ typedef struct Packet{
 }Packet;
 
 typedef struct PacketArrayNode{
-    Packet* packet;
+    Packet packet;
     int is_acked;
 }PacketArrayNode;
 /*
@@ -41,7 +41,7 @@ static char* read_stdin (void)
 {
   size_t cap = 4096, /* Initial capacity for the char buffer */
          len =    0; /* Current offset of the buffer */
-  char *buffer = malloc(cap * sizeof (char));
+  char *buffer = (char*) malloc(cap * sizeof (char));
   int c;
 
   /* Read char by char, breaking if we reach EOF or a newline */
@@ -54,11 +54,11 @@ static char* read_stdin (void)
        */
       if (++len == cap)
         /* Make the output buffer twice its current size */
-        buffer = realloc(buffer, (cap *= 2) * sizeof (char));
+        buffer = (char*) realloc(buffer, (cap *= 2) * sizeof (char));
     }
 
   /* Trim off any unused bytes from the buffer */
-  buffer = realloc(buffer, (len + 1) * sizeof (char));
+  //buffer = (char*) realloc(buffer, (len + 1) * sizeof (char));
 
   /* Pad the last byte so we don't overread the buffer in the future */
   buffer[len] = '\0';
@@ -68,18 +68,28 @@ static char* read_stdin (void)
 
 
 int msg_to_packet(char* msg,PacketArrayNode* packets){
-    int packet_count = (int) ceil(strlen(msg)/(float)MAX_DATA_SIZE));
-    printf("%d",packet_count);
-
-    packets = (PacketArrayNode*) malloc(sizeof(PacketArrayNode)*packet_count);
+    int packet_count = (int) ceil(strlen(msg)/8.0);
+    
+    //packet_count = 31;
+    FILE* fp = fopen("error2.txt","w");
+    /*fprintf(fp,"%d",packet_count);
+    fclose(fp);
+    while(1);    */
+    
     for(int i=0;i<packet_count;i++){
-        packets[i].packet->seq_no=i;
-        packets[i].packet->ack_no=-1;
-        packets[i].is_acked=0;
-        for(int j=0;j<MAX_DATA_SIZE;j++)
-            packets[i].packet->data[j] = msg[i*MAX_DATA_SIZE+j];     
+        (packets)[i].packet.seq_no=i;
+        (packets)[i].packet.ack_no=-1;
+        (packets)[i].is_acked=0;
+        for(int j=0;j<MAX_DATA_SIZE;j++){
+            (packets)[i].packet.data[j] = msg[i*8+j];
+        }
+        print_packet(fp,&(packets[i].packet));
+  
+        //fprintf(fp,"%s",packets[i].packet.data);   
     }
 
+    fclose(fp);
+    //while(1);
     return packet_count;
 }
 
@@ -90,7 +100,7 @@ void packet_to_msg(Packet* packet,char* msg){
     }
 }
 
-void print_packet(Packet* packet){
-    printf("(seq:%d,ack:%d,%s\n)",packet->seq_no,packet->ack_no,packet->data);
+void print_packet(FILE* fp,Packet* packet){
+    fprintf(fp,"(seq:%d,ack:%d,%c%c%c%c%c%c%c%c)\n",packet->seq_no,packet->ack_no,packet->data[0],packet->data[1],packet->data[2],packet->data[3],packet->data[4],packet->data[5],packet->data[6],packet->data[7]);
 }
 #endif //__LIB.H___

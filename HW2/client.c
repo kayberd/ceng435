@@ -9,7 +9,7 @@
 #include <time.h>
 
 #define PORT	 3000
-#define MAX_PACKET_NUM 1024
+#define MAX_PACKET_NUM 10
 
 // Driver code
 
@@ -31,20 +31,19 @@ void client_sender(){
 	/*
 		Şu an dümdüz inputu yolluyor sender.
 	*/
-	FILE* fp = fopen("error.txt","w");
-    char *hello = "Hello from client";
-	int packet_count = msg_to_packet(out_buffer,out_window); 
+	int packet_count = msg_to_packet(out_buffer,out_window);
+	FILE* fp = fopen("error.txt","w"); 
     //printf()
-	while(1){
-		fprintf(fp,"%d",packet_count);
-
+	//while(1){
 		for(int i=0;i<packet_count;i++){
-			print_packet((out_window[i].packet));
+			//fprintf(fp,"test31\n");
+			//fprintf(fp,"%c",out_window[i].packet.data[0]);	
+			//print_packet(fp,&(out_window[i].packet));
 			//sendto(sockfd,(char*)hello,strlen(hello),0,(const struct sockaddr*)&servaddr,sizeof(servaddr));
-			//sendto(sockfd, (out_window[i].packet),sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
+			sendto(sockfd, &(out_window[i].packet),sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
 			//sleep(0.2);
 		}
-	}
+	//}
 	//printf("Hello message sent.\n");
 }
 
@@ -52,7 +51,7 @@ void client_receiver(){
 	char* msg;
 	Packet packet;
     int len_serv_addr = sizeof(servaddr); //len is value/resuslt
-
+	
 	while(1){
 		recvfrom(sockfd, (Packet *)&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &servaddr,&len_serv_addr);
 		packet_to_msg(&packet,msg);
