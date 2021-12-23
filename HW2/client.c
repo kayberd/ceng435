@@ -9,8 +9,8 @@
 #include <time.h>
 
 
-#define SERV_PORT 1881
-#define CLI_PORT  1938
+//#define SERV_PORT 1881
+//#define CLI_PORT  1938
 #define MAX_PACKET_NUM 1000
 
 // Driver code
@@ -26,6 +26,9 @@ int recv_sockfd;
 struct sockaddr_in servaddr, cliaddr;
 PacketArrayNode inp_window[MAX_PACKET_NUM];
 PacketArrayNode out_window[MAX_PACKET_NUM];
+
+int SERV_PORT;
+int CLI_PORT;
 
 void client_sender(){
 		
@@ -89,6 +92,7 @@ void client_receiver(){
 	}
 	//fclose(fp);
 }
+
 void stdin_reader(){
 	
 
@@ -100,11 +104,16 @@ void stdin_reader(){
 
 
 }
+
 void time_out(){
 	;
 }
-int main() {
 
+int main(int argc,char** argv) {
+
+	char* SERVER_IP = argv[1];
+	SERV_PORT = atoi(argv[2]);
+	CLI_PORT = atoi(argv[3]);
 
 	pthread_t client_sender_th,client_receiver_th,stdin_reader_th;
 	// Creating socket file descriptor
@@ -123,11 +132,11 @@ int main() {
 	
 	// Filling server information
 	servaddr.sin_family = AF_INET; // IPv4
-	servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	servaddr.sin_addr.s_addr = inet_addr(SERVER_IP);
 	servaddr.sin_port = htons(SERV_PORT);
 
 	cliaddr.sin_family = AF_INET; // IPv4
-	cliaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	cliaddr.sin_addr.s_addr = inet_addr(SERVER_IP);
 	cliaddr.sin_port = htons(CLI_PORT);
 
 	

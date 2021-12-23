@@ -8,8 +8,8 @@
 #include "lib.h"
 #include <time.h>
 
-#define SERV_PORT	 1881
-#define CLI_PORT	 1938
+//#define SERV_PORT	 1881
+//#define CLI_PORT	 1938
 #define MAX_PACKET_NUM 1000
 
 // Driver code
@@ -25,6 +25,8 @@ int recv_sockfd;
 struct sockaddr_in servaddr, cliaddr;
 PacketArrayNode inp_window[MAX_PACKET_NUM];
 PacketArrayNode out_window[MAX_PACKET_NUM];
+int SERV_PORT;
+int CLI_PORT;
 
 void* server_sender(){
 
@@ -109,8 +111,10 @@ void* stdin_reader(){
 void time_out(){
 	;
 }
-int main() {
+int main(int argc,char** argv) {
 
+	SERV_PORT = atoi(argv[1]);
+	printf("%d",SERV_PORT);
 
 	pthread_t server_sender_th,server_receiver_th,stdin_reader_th;
 	// Creating socket file descriptor
