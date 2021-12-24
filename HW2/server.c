@@ -20,8 +20,8 @@ pthread_mutex_t inp_buffer_write_lock = PTHREAD_MUTEX_INITIALIZER;
 char* inp_buffer;
 char* out_buffer;
 
-int send_sockfd;
-int recv_sockfd;
+//int send_sockfd;
+int serv_sockfd;
 struct sockaddr_in servaddr, cliaddr;
 PacketArrayNode inp_window[MAX_PACKET_NUM];
 PacketArrayNode out_window[MAX_PACKET_NUM];
@@ -54,7 +54,7 @@ void* server_sender(){
 			//fprintf(fp,"%c",out_window[i].packet.data[0]);	
 			//print_packet(fp,&(out_window[i].packet));
 			//sendto(sockfd,(char*)hello,strlen(hello),0,(const struct sockaddr*)&servaddr,sizeof(servaddr));
-			sendto(send_sockfd, &(out_window[i].packet),sizeof(Packet),0,(const struct sockaddr *) &cliaddr,sizeof(cliaddr));
+			sendto(serv_sockfd, &(out_window[i].packet),sizeof(Packet),0,(const struct sockaddr *) &cliaddr,sizeof(cliaddr));
 			//sleep(0.2);
 		}
 	}
@@ -63,7 +63,7 @@ void* server_sender(){
 void* server_receiver(){
 	char* msg;
 	Packet packet;
-	socklen_t len_serv = sizeof(servaddr);
+	socklen_t len_cli = sizeof(cliaddr);
 	//FILE* fp = fopen("server.txt","w");
 	
 	while(1){
@@ -72,7 +72,7 @@ void* server_receiver(){
 		//packet.data[0] = 'b';
 		//printf("31");
 		//recvfrom(sockfd, (char *)buffer,20,MSG_WAITALL, ( struct sockaddr *) &cliaddr,&len_cliaddr);
-		recvfrom(recv_sockfd, (Packet *)&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &servaddr,&len_serv);
+		recvfrom(serv_sockfd, (Packet *)&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &cliaddr,&len_cli);
 		//print_packet(stdout,&packet);
 		//sleep(0.1);
 		//printf("Her>>");
@@ -118,15 +118,11 @@ int main(int argc,char** argv) {
 
 	pthread_t server_sender_th,server_receiver_th,stdin_reader_th;
 	// Creating socket file descriptor
-	if ( (recv_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+	if ( (serv_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
 		perror("Socket Creation Failed");
 		exit(EXIT_FAILURE);
 	}
-	if ( (send_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-		perror("Socket Creation Failed");
-		exit(EXIT_FAILURE);
-	}
-    
+
 	
 	memset(&servaddr, 0, sizeof(servaddr));
 	memset(&cliaddr, 0, sizeof(cliaddr));
@@ -142,7 +138,7 @@ int main(int argc,char** argv) {
 
 	
 	// Bind the socket with the server address
-	if ( bind(recv_sockfd, (const struct sockaddr *)&servaddr,sizeof(servaddr)) < 0 )
+	if ( bind(serv_sockfd, (const struct sockaddr *)&servaddr,sizeof(servaddr)) < 0 )
 	{
 		perror("Bind Failed");
 		exit(EXIT_FAILURE);

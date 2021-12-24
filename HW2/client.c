@@ -21,8 +21,8 @@
 char* inp_buffer;
 char* out_buffer;
 
-int send_sockfd;
-int recv_sockfd;
+//int send_sockfd;
+int cli_sockfd;
 struct sockaddr_in servaddr, cliaddr;
 PacketArrayNode inp_window[MAX_PACKET_NUM];
 PacketArrayNode out_window[MAX_PACKET_NUM];
@@ -51,7 +51,7 @@ void client_sender(){
 			//fprintf(fp,"%c",out_window[i].packet.data[0]);	
 			//print_packet(fp,&(out_window[i].packet));
 			//sendto(sockfd,(char*)hello,strlen(hello),0,(const struct sockaddr*)&servaddr,sizeof(servaddr));
-			sendto(send_sockfd, &(out_window[i].packet),sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
+			sendto(cli_sockfd, &(out_window[i].packet),sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
 			//sleep(0.2);
 		}
 	}
@@ -70,7 +70,7 @@ void client_receiver(){
 		//packet.data[0] = 'b';
 		//printf("31");
 		//recvfrom(sockfd, (char *)buffer,20,MSG_WAITALL, ( struct sockaddr *) &cliaddr,&len_cliaddr);
-		recvfrom(recv_sockfd, (Packet *)&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &cliaddr,&len_cliaddr);
+		recvfrom(cli_sockfd, (Packet *)&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &cliaddr,&len_cliaddr);
 		//print_packet(stdout,&packet);
 		//sleep(0.1);
 		//printf("Her>>");
@@ -117,14 +117,11 @@ int main(int argc,char** argv) {
 
 	pthread_t client_sender_th,client_receiver_th,stdin_reader_th;
 	// Creating socket file descriptor
-	if ( (send_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+	if ( (cli_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
 		perror("Socket Creation Failed");
 		exit(EXIT_FAILURE);
 	}
-	if ( (recv_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-		perror("Socket Creation Failed");
-		exit(EXIT_FAILURE);
-	}
+	
     
 	
 	memset(&servaddr, 0, sizeof(servaddr));
@@ -141,7 +138,7 @@ int main(int argc,char** argv) {
 
 	
 	// Bind the socket with the server address
-	if ( bind(recv_sockfd, (const struct sockaddr *)&cliaddr,sizeof(cliaddr)) < 0 )
+	if ( bind(cli_sockfd, (const struct sockaddr *)&cliaddr,sizeof(cliaddr)) < 0 )
 	{
 		perror("Bind Failed");
 		exit(EXIT_FAILURE);
