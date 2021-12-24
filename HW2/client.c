@@ -11,7 +11,9 @@
 
 //#define SERV_PORT 1881
 //#define CLI_PORT  1938
+#define WINDOW_SIZE 4
 #define MAX_PACKET_NUM 1000
+#define TIMEOUT 1000 //timeout currently 1000ms 1s
 
 // Driver code
 
@@ -24,73 +26,90 @@ char* out_buffer;
 //int send_sockfd;
 int cli_sockfd;
 struct sockaddr_in servaddr, cliaddr;
-PacketArrayNode inp_window[MAX_PACKET_NUM];
+PacketArrayNode in_window[MAX_PACKET_NUM];
 PacketArrayNode out_window[MAX_PACKET_NUM];
 
 int SERV_PORT;
 int CLI_PORT;
 
+unsigned int ACKED_MIN=-1;
+unsigned int SENT_LAST=-1;
+unsigned int SEQ_NUM=0;
+
+
 void client_sender(){
 		
-	/*
-		Şu an dümdüz inputu yolluyor sender.
-	*/
 	printf("Welcome to CHATWORK435 !!!\n");
 	printf("Type 'BYE' to quit, press 'ENTER' to send\n");
 
-	//FILE* fp = fopen("error.txt","w"); 
-    //printf()
-	while(1){
-		out_buffer=read_stdin();
-		sleep(0.1);
-		int packet_count = msg_to_packet(out_buffer,out_window);
 
+	while(1){
+
+		out_buffer=read_stdin();
 		
-		for(int i=0;i<packet_count;i++){
-			//fprintf(fp,"test31\n");
-			//fprintf(fp,"%c",out_window[i].packet.data[0]);	
-			//print_packet(fp,&(out_window[i].packet));
-			//sendto(sockfd,(char*)hello,strlen(hello),0,(const struct sockaddr*)&servaddr,sizeof(servaddr));
-			sendto(cli_sockfd, &(out_window[i].packet),sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
-			//sleep(0.2);
+		int packet_count = msg_to_packet(out_buffer,out_window);
+		
+		for(int i=1;i<packet_count+1;i++){
+
+			// TODO:   ADD mutex or cond var here
+			//Busy wait currently
+			while(!(SENT_LAST-ACKED_MIN < WIN_SIZE)) sleep(0.1);
+
+			printf("%d\n",ACKED_MIN);
+			sendto(cli_sockfd, &(out_window[ACKED_MIN+i].packet),sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
+			//SEQ_NUM++;
+			SENT_LAST = SEQ_NUM;
 		}
 	}
-	//printf("Hello message sent.\n");
+
 }
 
 void client_receiver(){
 	char* msg;
 	Packet packet;
-	socklen_t len_cliaddr = sizeof(cliaddr);
-	//FILE* fp = fopen("server.txt","w");
+	socklen_t len_servaddr = sizeof(servaddr);
+	long unsigned int check_sum;
 	
 	while(1){
 		
-		//Packet packet;
-		//packet.data[0] = 'b';
-		//printf("31");
-		//recvfrom(sockfd, (char *)buffer,20,MSG_WAITALL, ( struct sockaddr *) &cliaddr,&len_cliaddr);
-		recvfrom(cli_sockfd, (Packet *)&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &cliaddr,&len_cliaddr);
-		//print_packet(stdout,&packet);
-		//sleep(0.1);
-		//printf("Her>>");
-		//fflush(stdout);
-		print_msg(stdout,packet_to_msg(&packet));
-		//fflush(stdout);
-		//fflush(stdout);
-		//fflush(stdout);
-		//fflush(stdout);
-		//fflush(stdout);
-		//sleep(0.1);
-		//sleep(0.3);
-		//fclose(fp);
-		//break;
-		//fprintf(fp,"%s",msg);
+
+
+		recvfrom(cli_sockfd,&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &servaddr,&len_servaddr);
 		
-		//while(1) printf("31");
-		//sleep(31);
+
+		/*if(check_packet_checksum(&packet,&check_sum)){
+			printf("Correct check_sum checked sum = %lu\n",check_sum);
+		}
+		else{
+			printf("Incorrect checksum\n");
+		}*/
+		if(packet.ack_no == -1){
+			if(assign_packet(&(in_window[packet.seq_no].packet),&packet) == -1)
+				fprintf(stdin,"Packet assign failed \n");
+			
+			//print_msg(stdout,packet_to_msg(&packet));
+			print_packet(stdout,&(in_window[packet.seq_no].packet));
+			sendto(cli_sockfd, (make_ack(packet.seq_no)),sizeof(Packet),0,(const struct sockaddr *) &servaddr,len_servaddr);
+
+		
+		}
+		else{
+
+			in_window[packet.seq_no].is_acked = 1;
+
+			if(packet.ack_no == ACKED_MIN+1){
+				for(int i=1;i<WIN_SIZE+1;i++){
+					if(in_window[ACKED_MIN+i].is_acked == 1){
+						ACKED_MIN++;
+					}
+					else{
+						break;
+					}
+				}
+			}
+		}
+
 	}
-	//fclose(fp);
 }
 
 void stdin_reader(){
@@ -98,7 +117,6 @@ void stdin_reader(){
 
 
 
-    //printf("%s",out_buffer);
 
 	;
 
@@ -106,7 +124,22 @@ void stdin_reader(){
 }
 
 void time_out(){
-	;
+
+	struct timeval tp;
+	long int curr_time_ms;
+	
+	while(1){
+		sleep(15);
+		for(int i=ACKED_MIN;i<SENT_LAST+1;i++){
+			if(out_window[i].is_acked==1)
+				continue;
+			gettimeofday(&tp, NULL);
+			curr_time_ms = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+			if(out_window[i].is_acked==0 && curr_time_ms-out_window[i].send_time >= TIMEOUT){
+				sendto(cli_sockfd, &(out_window[i].packet),sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
+			}
+		}
+	}
 }
 
 int main(int argc,char** argv) {
@@ -115,7 +148,7 @@ int main(int argc,char** argv) {
 	SERV_PORT = atoi(argv[2]);
 	CLI_PORT = atoi(argv[3]);
 
-	pthread_t client_sender_th,client_receiver_th,stdin_reader_th;
+	pthread_t client_sender_th,client_receiver_th,stdin_reader_th,time_out_th;
 	// Creating socket file descriptor
 	if ( (cli_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
 		perror("Socket Creation Failed");
@@ -149,12 +182,12 @@ int main(int argc,char** argv) {
 	//pthread_join(stdin_reader_th,NULL);
     pthread_create(&client_sender_th,NULL,(void*)client_sender,NULL);
 	pthread_create(&client_receiver_th,NULL,(void*)client_receiver,NULL);
+	//pthread_create(&time_out_th,NULL,(void*)time_out,NULL);
 	
 
 	pthread_join(client_sender_th,NULL);
 	pthread_join(client_receiver_th,NULL);
-	
-
+	//pthread_join(time_out_th,NULL);
 	
 
 

@@ -5,32 +5,26 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/time.h>
 #include "math.h"
 #define WIN_SIZE 10
 #define MAX_SEQ_NUM WIN_SIZE*2
 #define MAX_DATA_SIZE 8
 
+extern unsigned int SEQ_NUM;
+
 typedef struct Packet{
     int seq_no;
     int ack_no;
+    unsigned long int checksum;
     char data[MAX_DATA_SIZE];
-    //int checksum;
 }Packet;
 
 typedef struct PacketArrayNode{
     Packet packet;
     int is_acked;
+    time_t send_time;
 }PacketArrayNode;
-/*
-Packet* make_packet(int seq_no,,char* data){
-
-    Packet* packet;
-    packet->seq_no = seq_no;
-    strcpy(packet->data,data);
-    //packet->checksum
-    return packet;
-}
-*/
 
 
 /* 
@@ -69,30 +63,29 @@ static char* read_stdin (void)
   return buffer;
 }
 
-
 int msg_to_packet(char* msg,PacketArrayNode* packets){
     int packet_count = (int) ceil(strlen(msg)/8.0);
     
-    //packet_count = 31;
-    //FILE* fp = fopen("error2.txt","w");
-    /*fprintf(fp,"%d",packet_count);
-    fclose(fp);
-    while(1);    */
+
     
     for(int i=0;i<packet_count;i++){
-        (packets)[i].packet.seq_no=i;
-        (packets)[i].packet.ack_no=-1;
-        (packets)[i].is_acked=0;
-        for(int j=0;j<MAX_DATA_SIZE;j++){
-            (packets)[i].packet.data[j] = msg[i*8+j];
-        }
-        //print_packet(fp,&(packets[i].packet));
-  
-        //fprintf(fp,"%s",packets[i].packet.data);   
-    }
+        packets[SEQ_NUM].packet.seq_no=SEQ_NUM;
+        packets[SEQ_NUM].packet.ack_no=-1;
+        packets[SEQ_NUM].packet.checksum = SEQ_NUM-1;
+        packets[SEQ_NUM].is_acked=0;
 
-    //fclose(fp);
-    //while(1);
+        struct timeval tp;
+        gettimeofday(&tp, NULL);
+        long int ms = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+        packets[SEQ_NUM].send_time = ms;
+
+        for(int j=0;j<MAX_DATA_SIZE;j++){
+            packets[SEQ_NUM].packet.data[j] = msg[i*8+j];
+            packets[SEQ_NUM].packet.checksum += msg[i*8+j];
+        }
+        SEQ_NUM++;
+    }
+    
     return packet_count;
 }
 
@@ -112,4 +105,51 @@ void print_msg(FILE* stream,char* msg){
         for(int i=0;i<MAX_DATA_SIZE;i++)
             fprintf(stream,"%c",msg[i]);
 }
+unsigned int check_packet_checksum(Packet* packet,long unsigned int *checksum){
+    int checked_sum = 0;
+    checked_sum += packet->seq_no+packet->ack_no;
+    for(int i=0;i<MAX_DATA_SIZE;i++)
+        checked_sum+= packet->data[i];
+    (*checksum)=checked_sum;
+    return checked_sum==packet->checksum;
+
+}
+Packet* make_ack(int ack_no){
+    Packet* ack = (Packet*) malloc(sizeof(Packet));
+    ack->ack_no=ack_no;
+    ack->seq_no=-1;
+    for(int i=0;i<MAX_DATA_SIZE;i++)
+        ack->data[i] = 0;
+    ack->checksum=ack_no-1;
+    return ack;  
+}
+int assign_packet(Packet* lhs,Packet* rhs){
+    if(lhs && rhs){
+        lhs->ack_no=rhs->ack_no;
+        lhs->seq_no=rhs->seq_no;
+        lhs->checksum=rhs->checksum;
+        for(int i=0;i<MAX_DATA_SIZE;i++)
+            lhs->data[i] = rhs->data[i];      
+        
+        return 1;
+    }
+    return -1;
+}
+void dump_window(PacketArrayNode* window){
+
+    for(int i=0;i<SEQ_NUM;i++){
+        print_packet(stdout,&(window[i].packet));
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
 #endif //__LIB.H___
