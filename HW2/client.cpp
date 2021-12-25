@@ -1,17 +1,14 @@
 // Server side implementation of UDP client-server model
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <pthread.h>
+
 #include "lib.h"
-#include <time.h>
+
+
+using namespace std;
 
 
 //#define SERV_PORT 1881
 //#define CLI_PORT  1938
-#define WINDOW_SIZE 4
+#define WIN_SIZE 4
 #define MAX_PACKET_NUM 1000
 #define TIMEOUT 1000 //timeout currently 1000ms 1s
 
@@ -20,8 +17,11 @@
 //pthread_cond_t cond1 = PTHREAD_COND_INITIALIZER;
 //pthread_mutex_t inp_buffer_write_lock = PTHREAD_MUTEX_INITIALIZER;
 
-char* inp_buffer;
-char* out_buffer;
+string out_buffer="";
+
+pthread_mutex_t out_buffer_mx;
+pthread_mutex_t send_mutex;
+pthread_mutex_t init_packet_mx;
 
 //int send_sockfd;
 int cli_sockfd;
@@ -37,35 +37,68 @@ unsigned int SENT_LAST=-1;
 unsigned int SEQ_NUM=0;
 
 
-void client_sender(){
-		
+void* client_sender(void*){
+
+
+
 	printf("Welcome to CHATWORK435 !!!\n");
 	printf("Type 'BYE' to quit, press 'ENTER' to send\n");
 
 
+	//pthread_mutex_lock(&init_packet_mx);
+	Packet init_packet;
+	init_packet.seq_no=0;
+	for(int i=0;i<MAX_DATA_SIZE;i++) init_packet.data[i]=0;
+	init_packet.ack_no=-2;
+	init_packet.checksum=-2;
+	
+	sendto(cli_sockfd, &(init_packet),sizeof(Packet),MSG_CONFIRM,(const struct sockaddr *) &servaddr,sizeof(servaddr));
+	print_packet(stdout,&init_packet);
+
+	
+	int print_flag_on=1;
 	while(1){
 
-		out_buffer=read_stdin();
-		
+		//out_buffer=read_stdin();
+		pthread_mutex_lock(&send_mutex);
+		pthread_mutex_lock(&out_buffer_mx);
 		int packet_count = msg_to_packet(out_buffer,out_window);
+		pthread_mutex_unlock(&out_buffer_mx);
+		//pthread_mutex_unlock(&send_mutex);
 		
-		for(int i=1;i<packet_count+1;i++){
+		for(int i=0;i<packet_count;i++){
 
 			// TODO:   ADD mutex or cond var here
 			//Busy wait currently
-			while(!(SENT_LAST-ACKED_MIN < WIN_SIZE)) sleep(0.1);
+			SENT_LAST++;
 
-			printf("%d\n",ACKED_MIN);
-			sendto(cli_sockfd, &(out_window[ACKED_MIN+i].packet),sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
+			sleep(0.00001);
+			while(!(SENT_LAST-ACKED_MIN <= WIN_SIZE)){
+				if(print_flag_on){
+					printf("Waiting ACK:%d\n",ACKED_MIN);
+					print_flag_on=0;
+				}
+				sleep(0.001);
+			}
+
+			
+			
+			//printf("%d\n",SENT_LAST);
+			
+			sendto(cli_sockfd, &(out_window[SENT_LAST].packet),sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
+			
+			//print_packet(stdout,&(out_window[SENT_LAST].packet));
 			//SEQ_NUM++;
-			SENT_LAST = SEQ_NUM;
+			
+			//SENT_LAST = SEQ_NUM;
+			
 		}
 	}
 
 }
 
-void client_receiver(){
-	char* msg;
+void* client_receiver(void*){
+	string msg;
 	Packet packet;
 	socklen_t len_servaddr = sizeof(servaddr);
 	long unsigned int check_sum;
@@ -76,6 +109,7 @@ void client_receiver(){
 
 		recvfrom(cli_sockfd,&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &servaddr,&len_servaddr);
 		
+		//print_packet(stdout,&(in_window[packet.seq_no].packet));
 
 		/*if(check_packet_checksum(&packet,&check_sum)){
 			printf("Correct check_sum checked sum = %lu\n",check_sum);
@@ -95,8 +129,10 @@ void client_receiver(){
 		}
 		else{
 
-			in_window[packet.seq_no].is_acked = 1;
+			in_window[packet.ack_no].is_acked = 1;
+			printf("ACKED:%d\n",packet.ack_no);
 
+			//print_packet(stdout,&packet);
 			if(packet.ack_no == ACKED_MIN+1){
 				for(int i=1;i<WIN_SIZE+1;i++){
 					if(in_window[ACKED_MIN+i].is_acked == 1){
@@ -112,14 +148,25 @@ void client_receiver(){
 	}
 }
 
-void stdin_reader(){
+void* stdin_reader(void*){
 	
 
+	while(true){
 
+		string aux;
 
+		getline(cin,aux);
+		pthread_mutex_unlock(&send_mutex);
+		if(aux == "BYE"){
+			//some exit code
+			;
+		}
 
-	;
+		pthread_mutex_lock(&out_buffer_mx);
+		out_buffer=aux;
+		pthread_mutex_unlock(&out_buffer_mx);
 
+	}
 
 }
 
@@ -177,16 +224,17 @@ int main(int argc,char** argv) {
 		exit(EXIT_FAILURE);
 	}
 	
+	pthread_mutex_lock(&send_mutex);
 
-    //pthread_create(&stdin_reader_th,NULL,(void*)stdin_reader,NULL);
-	//pthread_join(stdin_reader_th,NULL);
-    pthread_create(&client_sender_th,NULL,(void*)client_sender,NULL);
-	pthread_create(&client_receiver_th,NULL,(void*)client_receiver,NULL);
+    pthread_create(&stdin_reader_th,NULL,&stdin_reader,NULL);
+    pthread_create(&client_sender_th,NULL,&client_sender,NULL);
+	pthread_create(&client_receiver_th,NULL,&client_receiver,NULL);
 	//pthread_create(&time_out_th,NULL,(void*)time_out,NULL);
 	
 
 	pthread_join(client_sender_th,NULL);
 	pthread_join(client_receiver_th,NULL);
+	pthread_join(stdin_reader_th,NULL);
 	//pthread_join(time_out_th,NULL);
 	
 
