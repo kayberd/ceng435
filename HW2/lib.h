@@ -23,8 +23,8 @@ using namespace std;
 //#define SERV_PORT 1881
 //#define CLI_PORT  1938
 #define WIN_SIZE 4
-#define MAX_PACKET_NUM 1000
-#define TIMEOUT 1000 //timeout currently 1000ms 1s
+#define MAX_PACKET_NUM 1024
+#define TIMEOUT 100 //timeout currently 1000ms 1s
 
 // Driver code
 
