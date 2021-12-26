@@ -28,7 +28,7 @@ using namespace std;
 
 // Driver code
 
-extern unsigned int SEQ_NUM;
+extern int SEQ_NUM;
 
 typedef struct Packet{
     int seq_no;
