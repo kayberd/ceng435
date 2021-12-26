@@ -15,11 +15,9 @@ pthread_mutex_t send_mutex;
 pthread_mutex_t init_packet_mx;
 pthread_mutex_t out_window_mx;
 pthread_mutex_t acked_min_mx;
+pthread_mutex_t not_bye_mx;
 
-bool is_terminated_sender;
-bool is_terminated_receiver;
-bool is_terminated_stdin;
-bool is_terminated_timeout;
+bool not_bye = true;
 
 //int send_sockfd;
 int cli_sockfd;
@@ -56,6 +54,13 @@ void* client_sender(void*){
 	
 	//int print_flag_on=1;
 	while(1){
+
+		pthread_mutex_lock(&not_bye_mx);
+		if(not_bye == false){
+			pthread_mutex_unlock(&not_bye_mx);
+			break;
+		}
+		pthread_mutex_unlock(&not_bye_mx);
 
 		//out_buffer=read_stdin();
 		pthread_mutex_lock(&send_mutex);
@@ -120,7 +125,12 @@ void* client_receiver(void*){
 	
 	while(1){
 		
-
+		pthread_mutex_lock(&not_bye_mx);
+		if(not_bye == false){
+			pthread_mutex_unlock(&not_bye_mx);
+			break;
+		}
+		pthread_mutex_unlock(&not_bye_mx);
 
 		recvfrom(cli_sockfd,&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &servaddr,&len_servaddr);
 		
@@ -188,15 +198,24 @@ void* client_receiver(void*){
 void* stdin_reader(void*){
 	
 
-	while(true){
+	while(1){
+
+		pthread_mutex_lock(&not_bye_mx);
+		if(not_bye == false){
+			pthread_mutex_unlock(&not_bye_mx);
+			break;
+		}
+		pthread_mutex_unlock(&not_bye_mx);
 
 		string aux;
 
 		getline(cin,aux);
+		aux+="\n";
 		pthread_mutex_unlock(&send_mutex);
 		if(aux == "BYE"){
-			//some exit code
-			;
+			pthread_mutex_lock(&not_bye_mx);
+			not_bye=false;
+			pthread_mutex_unlock(&not_bye_mx);
 		}
 
 		pthread_mutex_lock(&out_buffer_mx);
@@ -216,7 +235,13 @@ void* time_out(void*){
 
 
 	while(1){
-		//sleep(15);
+		pthread_mutex_lock(&not_bye_mx);
+		if(not_bye == false){
+			pthread_mutex_unlock(&not_bye_mx);
+			break;
+		}		
+		//sleep(15)
+		pthread_mutex_unlock(&not_bye_mx);
 		//pthread_mutex_lock(&out_window_mx);
 
 		for(int i=0;i<MAX_PACKET_NUM;i++){

@@ -1,4 +1,4 @@
-// Server side implementation of UDP server-server model
+// Server side implementation of UDP client-server model
 
 #include "lib.h"
 
@@ -8,17 +8,16 @@
 //pthread_cond_t cond1 = PTHREAD_COND_INITIALIZER;
 //pthread_mutex_t inp_buffer_write_lock = PTHREAD_MUTEX_INITIALIZER;
 
-string out_buffer ="";
+string out_buffer="";
+
 pthread_mutex_t out_buffer_mx;
 pthread_mutex_t send_mutex;
 //pthread_mutex_t init_packet_mx;
 pthread_mutex_t out_window_mx;
 pthread_mutex_t acked_min_mx;
+pthread_mutex_t not_bye_mx;
 
-bool is_terminated_sender;
-bool is_terminated_receiver;
-bool is_terminated_stdin;
-bool is_terminated_timeout;
+bool not_bye=true;
 
 //int send_sockfd;
 int serv_sockfd;
@@ -42,43 +41,40 @@ void* server_sender(void*){
 	printf("Type 'BYE' to quit, press 'ENTER' to send\n");
 
 
-	//pthread_mutex_lock(&init_packet_mx);
-	/*Packet init_packet;
-	init_packet.seq_no=0;
-	for(int i=0;i<MAX_DATA_SIZE;i++) init_packet.data[i]=0;
-	init_packet.ack_no=-2;
-	init_packet.checksum=-2;
 	
-	sendto(cli_sockfd, &(init_packet),sizeof(Packet),MSG_CONFIRM,(const struct sockaddr *) &servaddr,sizeof(servaddr));
-	//print_packet(stdout,&init_packet);
-*/
 	
-	//int print_flag_on=1;
-	while(1){
 
-		//out_buffer=read_stdin();
+	
+	while(1){
+		pthread_mutex_lock(&not_bye_mx);
+		if(not_bye == false){
+			pthread_mutex_unlock(&not_bye_mx);
+			break;
+		}
+		pthread_mutex_unlock(&not_bye_mx);
+
 		pthread_mutex_lock(&send_mutex);
 		pthread_mutex_lock(&out_buffer_mx);
 		int packet_count = msg_to_packet(out_buffer,out_window);
 		pthread_mutex_unlock(&out_buffer_mx);
-		//pthread_mutex_unlock(&send_mutex);
 		
 		for(int i=0;i<packet_count;i++){
 
 			// TODO:   ADD mutex or cond var here
 			//Busy wait currently
-			SENT_LAST++;
 			//printf("SENT_LAST:%d\n",SENT_LAST);
 			//sleep(0.00001);
-			
+			int k=0;
 			while(1){
+				k++;
 				pthread_mutex_lock(&acked_min_mx);
 				if((SENT_LAST-ACKED_MIN <= WIN_SIZE)){
 					pthread_mutex_unlock(&acked_min_mx);
 					break;
 				} 
-				if(true){
+				if(k==100000){
 					printf("Waiting ACK:%d\n",ACKED_MIN);
+					k=0;
 					//print_flag_on=0;
 				}
 
@@ -86,7 +82,7 @@ void* server_sender(void*){
 				//sendto(cli_sockfd, &(out_window[ACKED_MIN+1].packet),sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
 
 				pthread_mutex_unlock(&acked_min_mx);
-				sleep(1);
+				sleep(0.01);
 			}
 			//print_flag_on=1;
 
@@ -96,7 +92,9 @@ void* server_sender(void*){
 			//printf("%d\n",SENT_LAST);
 			pthread_mutex_lock(&out_window_mx);
 			set_init_time(out_window[SENT_LAST]);
-			sendto(serv_sockfd, &(out_window[SENT_LAST].packet),sizeof(Packet),0,(const struct sockaddr *) &cliaddr,sizeof(cliaddr));
+			sendto(serv_sockfd, &(out_window[SENT_LAST+1].packet),sizeof(Packet),0,(const struct sockaddr *) &cliaddr,sizeof(cliaddr));
+			SENT_LAST++;
+
 			pthread_mutex_unlock(&out_window_mx);
 			//print_packet(stdout,&(out_window[SENT_LAST].packet));
 			//SEQ_NUM++;
@@ -115,8 +113,13 @@ void* server_receiver(void*){
 	long unsigned int check_sum;
 	
 	while(1){
-		
 
+		pthread_mutex_lock(&not_bye_mx);
+		if(not_bye == false){
+			pthread_mutex_unlock(&not_bye_mx);
+			break;
+		}
+		pthread_mutex_unlock(&not_bye_mx);
 
 		recvfrom(serv_sockfd,&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &cliaddr,&len_cliaddr);
 		
@@ -161,23 +164,7 @@ void* server_receiver(void*){
 			pthread_mutex_unlock(&out_window_mx);
 			printf("ACKED: %d\n",packet.ack_no);
 
-			//print_packet(stdout,&packet);
 
-			pthread_mutex_lock(&acked_min_mx);
-			if(packet.ack_no == ACKED_MIN+1){//ack came in order
-				int ACKED_LAST= ACKED_MIN;
-				pthread_mutex_lock(&out_window_mx);
-				for(int i=ACKED_MIN+1;i<WIN_SIZE+ACKED_LAST+1;i++){
-					
-					if(out_window[i].is_acked == 1)
-						ACKED_MIN++;
-					
-					else
-						break;					
-				}
-				pthread_mutex_unlock(&out_window_mx);
-			}
-			pthread_mutex_unlock(&acked_min_mx);
 		}
 
 	}
@@ -186,15 +173,24 @@ void* server_receiver(void*){
 void* stdin_reader(void*){
 	
 
-	while(true){
+	while(1){
 
+		pthread_mutex_lock(&not_bye_mx);
+		if(not_bye == false){
+			pthread_mutex_unlock(&not_bye_mx);
+			break;
+		}
+		pthread_mutex_unlock(&not_bye_mx);
 		string aux;
 
 		getline(cin,aux);
+		aux+="\n";
 		pthread_mutex_unlock(&send_mutex);
 		if(aux == "BYE"){
 			//some exit code
-			;
+			pthread_mutex_lock(&not_bye_mx);
+			not_bye=false;
+			pthread_mutex_unlock(&not_bye_mx);
 		}
 
 		pthread_mutex_lock(&out_buffer_mx);
@@ -210,12 +206,16 @@ void* time_out(void*){
 	struct timeval tp;
 	long int curr_time_ms;
 	
-	//FILE* time=fopen("server_time.txt","w");
 
 
 	while(1){
-		//sleep(15);
-		pthread_mutex_lock(&out_window_mx);
+
+		pthread_mutex_lock(&not_bye_mx);
+		if(not_bye == false){
+			pthread_mutex_unlock(&not_bye_mx);
+			break;
+		}	
+		pthread_mutex_unlock(&not_bye_mx);
 
 		for(int i=0;i<MAX_PACKET_NUM;i++){
 			
@@ -229,9 +229,11 @@ void* time_out(void*){
 			
 			if(curr_time_ms-out_window[i].send_time >= TIMEOUT){
 				
-				
-				//print_packet(time,&(out_window[i].packet));
-				//fprintf(time,"Init:%ld  Curr:%ld",out_window[i].send_time,curr_time_ms);
+				pthread_mutex_lock(&acked_min_mx);
+				if(out_window[i].packet.seq_no-1 > ACKED_MIN)
+					ACKED_MIN = out_window[i].packet.seq_no-1;
+				pthread_mutex_unlock(&acked_min_mx);				
+
 				set_init_time(out_window[i]);
 				sendto(serv_sockfd, &(out_window[i].packet),sizeof(Packet),0,(const struct sockaddr *) &cliaddr,sizeof(cliaddr));
 			}
@@ -240,10 +242,9 @@ void* time_out(void*){
 		}
 		pthread_mutex_unlock(&out_window_mx);
 		sleep(0.001);
-		//sleep(1);
-		//fprintf(time,"--------------------------\n");
+
 	}
-	//fclose(time);
+	
 }
 
 int main(int argc,char** argv) {
