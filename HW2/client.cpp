@@ -136,12 +136,11 @@ void* client_receiver(void*){
 		
 		//print_packet(stdout,&(in_window[packet.seq_no].packet));
 
-		/*if(check_packet_checksum(&packet,&check_sum)){
-			printf("Correct check_sum checked sum = %lu\n",check_sum);
+		if(check_packet_checksum(packet) == false){
+			sleep(0.01);
+			continue;
 		}
-		else{
-			printf("Incorrect checksum\n");
-		}*/
+
 		if(packet.ack_no == -1){//DATA PACKET
 			
 			if(in_window[packet.seq_no].packet.seq_no == -2){//ORIGINAL PACKET

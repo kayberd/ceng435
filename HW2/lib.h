@@ -33,7 +33,7 @@ extern int SEQ_NUM;
 typedef struct Packet{
     int seq_no;
     int ack_no;
-    long int checksum;
+    int checksum;
     char data[MAX_DATA_SIZE];
 }Packet;
 
@@ -103,13 +103,13 @@ void print_msg(FILE* stream,string msg){
             fprintf(stream,"%c",msg[i]);
     //stream << msg;
 }
-unsigned int check_packet_checksum(Packet* packet,long unsigned int *checksum){
+bool check_packet_checksum(Packet packet){
     int checked_sum = 0;
-    checked_sum += packet->seq_no+packet->ack_no;
+    checked_sum += (packet.seq_no+packet.ack_no);
     for(int i=0;i<MAX_DATA_SIZE;i++)
-        checked_sum+= packet->data[i];
-    (*checksum)=checked_sum;
-    return checked_sum==packet->checksum;
+        checked_sum+= packet.data[i];
+    
+    return (checked_sum==packet.checksum);
 
 }
 Packet* make_ack(int ack_no){
