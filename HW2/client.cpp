@@ -3,16 +3,7 @@
 #include "lib.h"
 
 
-using namespace std;
 
-
-//#define SERV_PORT 1881
-//#define CLI_PORT  1938
-#define WIN_SIZE 4
-#define MAX_PACKET_NUM 1000
-#define TIMEOUT 1000 //timeout currently 1000ms 1s
-
-// Driver code
 
 //pthread_cond_t cond1 = PTHREAD_COND_INITIALIZER;
 //pthread_mutex_t inp_buffer_write_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -22,6 +13,12 @@ string out_buffer="";
 pthread_mutex_t out_buffer_mx;
 pthread_mutex_t send_mutex;
 pthread_mutex_t init_packet_mx;
+pthread_mutex_t out_window_mx;
+
+bool is_terminated_sender;
+bool is_terminated_receiver;
+bool is_terminated_stdin;
+bool is_terminated_timeout;
 
 //int send_sockfd;
 int cli_sockfd;
@@ -78,13 +75,20 @@ void* client_sender(void*){
 					printf("Waiting ACK:%d\n",ACKED_MIN);
 					print_flag_on=0;
 				}
-				sleep(0.001);
+
+				//printf("Resending packet:%d\n",ACKED_MIN+1);
+				//sendto(cli_sockfd, &(out_window[ACKED_MIN+1].packet),sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
+
+
+				sleep(0.01);
 			}
 
 			
 			
 			//printf("%d\n",SENT_LAST);
-			
+			pthread_mutex_lock(&out_window_mx);
+			set_init_time(out_window[SENT_LAST]);
+			pthread_mutex_unlock(&out_window_mx);
 			sendto(cli_sockfd, &(out_window[SENT_LAST].packet),sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
 			
 			//print_packet(stdout,&(out_window[SENT_LAST].packet));
@@ -117,7 +121,8 @@ void* client_receiver(void*){
 		else{
 			printf("Incorrect checksum\n");
 		}*/
-		if(packet.ack_no == -1){
+		if(packet.ack_no == -1 && in_window[packet.seq_no].packet.seq_no == -2){
+			
 			if(assign_packet(&(in_window[packet.seq_no].packet),&packet) == -1)
 				fprintf(stdin,"Packet assign failed \n");
 			
@@ -128,14 +133,21 @@ void* client_receiver(void*){
 		
 		}
 		else{
-
-			in_window[packet.ack_no].is_acked = 1;
+			
+			pthread_mutex_lock(&out_window_mx);
+			if(out_window[packet.ack_no].is_acked == 1){
+				//
+				pthread_mutex_unlock(&out_window_mx);
+				continue;
+			}
+			out_window[packet.ack_no].is_acked = 1;
+			pthread_mutex_unlock(&out_window_mx);
 			printf("ACKED:%d\n",packet.ack_no);
 
 			//print_packet(stdout,&packet);
 			if(packet.ack_no == ACKED_MIN+1){
 				for(int i=1;i<WIN_SIZE+1;i++){
-					if(in_window[ACKED_MIN+i].is_acked == 1){
+					if(out_window[ACKED_MIN+i].is_acked == 1){
 						ACKED_MIN++;
 					}
 					else{
@@ -170,23 +182,44 @@ void* stdin_reader(void*){
 
 }
 
-void time_out(){
+void* time_out(void*){
 
 	struct timeval tp;
 	long int curr_time_ms;
 	
+	//FILE* time=fopen("client_time.txt","w");
+
+
 	while(1){
-		sleep(15);
-		for(int i=ACKED_MIN;i<SENT_LAST+1;i++){
-			if(out_window[i].is_acked==1)
+		//sleep(15);
+		//pthread_mutex_lock(&out_window_mx);
+		for(int i=0;i<MAX_PACKET_NUM;i++){
+			
+			if(out_window[i].is_acked==1 || out_window[i].is_acked == -1){
+				
 				continue;
+			}
+			
 			gettimeofday(&tp, NULL);
 			curr_time_ms = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-			if(out_window[i].is_acked==0 && curr_time_ms-out_window[i].send_time >= TIMEOUT){
+			
+			if(curr_time_ms-out_window[i].send_time >= TIMEOUT){
+				
+				
+				//print_packet(time,&(out_window[i].packet));
+				//fprintf(time,"Init:%ld  Curr:%ld",out_window[i].send_time,curr_time_ms);
+				set_init_time(out_window[i]);
 				sendto(cli_sockfd, &(out_window[i].packet),sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
 			}
+			
+			
 		}
+		//pthread_mutex_unlock(&out_window_mx);
+		sleep(0.001);
+		//sleep(1);
+		//fprintf(time,"--------------------------\n");
 	}
+	//fclose(time);
 }
 
 int main(int argc,char** argv) {
@@ -224,18 +257,26 @@ int main(int argc,char** argv) {
 		exit(EXIT_FAILURE);
 	}
 	
+	for(int i=0;i<MAX_PACKET_NUM;i++){
+		out_window[i].is_acked=-1;
+		in_window[i].packet.seq_no=-2;
+
+	}
+	
+
+
 	pthread_mutex_lock(&send_mutex);
 
     pthread_create(&stdin_reader_th,NULL,&stdin_reader,NULL);
     pthread_create(&client_sender_th,NULL,&client_sender,NULL);
 	pthread_create(&client_receiver_th,NULL,&client_receiver,NULL);
-	//pthread_create(&time_out_th,NULL,(void*)time_out,NULL);
+	pthread_create(&time_out_th,NULL,&time_out,NULL);
 	
 
 	pthread_join(client_sender_th,NULL);
 	pthread_join(client_receiver_th,NULL);
 	pthread_join(stdin_reader_th,NULL);
-	//pthread_join(time_out_th,NULL);
+	pthread_join(time_out_th,NULL);
 	
 
 

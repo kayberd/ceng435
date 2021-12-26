@@ -18,6 +18,16 @@ using namespace std;
 #define MAX_SEQ_NUM WIN_SIZE*2
 #define MAX_DATA_SIZE 8
 
+
+
+//#define SERV_PORT 1881
+//#define CLI_PORT  1938
+#define WIN_SIZE 4
+#define MAX_PACKET_NUM 1000
+#define TIMEOUT 1000 //timeout currently 1000ms 1s
+
+// Driver code
+
 extern unsigned int SEQ_NUM;
 
 typedef struct Packet{
@@ -54,10 +64,7 @@ int msg_to_packet(string msg,PacketArrayNode* packets){
         packets[SEQ_NUM].packet.checksum = SEQ_NUM-1;
         packets[SEQ_NUM].is_acked=0;
 
-        struct timeval tp;
-        gettimeofday(&tp, NULL);
-        long int ms = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-        packets[SEQ_NUM].send_time = ms;
+       
 
         for(int j=0;j<MAX_DATA_SIZE;j++){
             if(j >= msg.length()){
@@ -133,6 +140,14 @@ void dump_window(PacketArrayNode* window){
     }
 }
 
+			
+
+void set_init_time(PacketArrayNode& packetNode){
+    struct timeval tp;
+    gettimeofday(&tp, NULL);
+    long int ms = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    packetNode.send_time = ms;
+}
 
 
 
