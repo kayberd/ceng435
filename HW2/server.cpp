@@ -45,13 +45,13 @@ void* server_sender(void*){
 	
 
 	
-	while(1){
+	while(1){/*
 		pthread_mutex_lock(&not_bye_mx);
 		if(not_bye == false){
 			pthread_mutex_unlock(&not_bye_mx);
 			break;
 		}
-		pthread_mutex_unlock(&not_bye_mx);
+		pthread_mutex_unlock(&not_bye_mx);*/
 
 		pthread_mutex_lock(&send_mutex);
 		pthread_mutex_lock(&out_buffer_mx);
@@ -107,6 +107,8 @@ void* server_sender(void*){
 }
 
 void* server_receiver(void*){
+
+	int printed_last = -1;
 	string msg;
 	Packet packet;
 	socklen_t len_cliaddr = sizeof(cliaddr);
@@ -114,12 +116,12 @@ void* server_receiver(void*){
 	
 	while(1){
 
-		pthread_mutex_lock(&not_bye_mx);
+		/*pthread_mutex_lock(&not_bye_mx);
 		if(not_bye == false){
 			pthread_mutex_unlock(&not_bye_mx);
 			break;
 		}
-		pthread_mutex_unlock(&not_bye_mx);
+		pthread_mutex_unlock(&not_bye_mx);*/
 
 		recvfrom(serv_sockfd,&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &cliaddr,&len_cliaddr);
 		
@@ -137,7 +139,16 @@ void* server_receiver(void*){
 					fprintf(stdin,"Packet assign failed \n");
 				
 				//print_msg(stdout,packet_to_msg(&packet));
-				print_packet(stdout,&(in_window[packet.seq_no].packet));
+				//print_packet(stdout,&(in_window[packet.seq_no].packet));
+				int i=printed_last+1;
+				while(in_window[i].packet.seq_no >= 0){
+					cout<<in_window[i].packet.data;
+					i++;
+					printed_last++;
+				}
+	
+
+
 				sendto(serv_sockfd, (make_ack(packet.seq_no)),sizeof(Packet),0,(const struct sockaddr *) &cliaddr,len_cliaddr);
 			}
 			else{
@@ -173,17 +184,18 @@ void* stdin_reader(void*){
 	
 
 	while(1){
-
+/*
 		pthread_mutex_lock(&not_bye_mx);
 		if(not_bye == false){
 			pthread_mutex_unlock(&not_bye_mx);
 			break;
 		}
 		pthread_mutex_unlock(&not_bye_mx);
+*/
 		string aux;
 
 		getline(cin,aux);
-		aux+="\n";
+		if(aux.length() > MAX_DATA_SIZE-2 )aux+="\n";
 		pthread_mutex_unlock(&send_mutex);
 		if(aux == "BYE"){
 			//some exit code
@@ -208,14 +220,17 @@ void* time_out(void*){
 
 
 	while(1){
-
+/*
 		pthread_mutex_lock(&not_bye_mx);
 		if(not_bye == false){
 			pthread_mutex_unlock(&not_bye_mx);
 			break;
 		}	
 		pthread_mutex_unlock(&not_bye_mx);
-
+		
+*/		
+		pthread_mutex_lock(&out_window_mx);
+		int printed_last=-1,t;
 		for(int i=0;i<MAX_PACKET_NUM;i++){
 			
 			if(out_window[i].is_acked==1 || out_window[i].is_acked == -1){
@@ -236,6 +251,7 @@ void* time_out(void*){
 				set_init_time(out_window[i]);
 				sendto(serv_sockfd, &(out_window[i].packet),sizeof(Packet),0,(const struct sockaddr *) &cliaddr,sizeof(cliaddr));
 			}
+
 			
 			
 		}

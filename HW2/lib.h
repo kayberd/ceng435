@@ -22,8 +22,8 @@ using namespace std;
 
 //#define SERV_PORT 1881
 //#define CLI_PORT  1938
-#define WIN_SIZE 4
-#define MAX_PACKET_NUM 1024
+#define WIN_SIZE 16
+#define MAX_PACKET_NUM 4096
 #define TIMEOUT 100 //timeout currently 1000ms 1s
 
 // Driver code
@@ -67,13 +67,25 @@ int msg_to_packet(string msg,PacketArrayNode* packets){
        
 
         for(int j=0;j<MAX_DATA_SIZE;j++){
-            if(j >= msg.length()){
+            if(j > msg.length()){
                 packets[SEQ_NUM].packet.data[j]=0;
                 
             }
             else{
-                packets[SEQ_NUM].packet.data[j] = msg[i*8+j];
-                packets[SEQ_NUM].packet.checksum += msg[i*8+j];
+                if(i==packet_count-1 && j==msg.length()){
+                    packets[SEQ_NUM].packet.data[j] = '\n';
+                    packets[SEQ_NUM].packet.checksum += '\n';
+                }
+                else if(i!=packet_count-1 && j==msg.length()){
+                    packets[SEQ_NUM].packet.data[j]=0;
+                    
+                }
+                else{
+                    packets[SEQ_NUM].packet.data[j] += msg[i*8+j];
+                    packets[SEQ_NUM].packet.checksum += msg[i*8+j];
+                }
+                
+                
             }
 
         }

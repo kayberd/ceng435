@@ -54,14 +54,14 @@ void* client_sender(void*){
 	
 	//int print_flag_on=1;
 	while(1){
-
+/*
 		pthread_mutex_lock(&not_bye_mx);
 		if(not_bye == false){
 			pthread_mutex_unlock(&not_bye_mx);
 			break;
 		}
 		pthread_mutex_unlock(&not_bye_mx);
-
+*/
 		//out_buffer=read_stdin();
 		pthread_mutex_lock(&send_mutex);
 		pthread_mutex_lock(&out_buffer_mx);
@@ -118,20 +118,21 @@ void* client_sender(void*){
 }
 
 void* client_receiver(void*){
+	int printed_last = -1;
 	string msg;
 	Packet packet;
 	socklen_t len_servaddr = sizeof(servaddr);
 	long unsigned int check_sum;
 	
 	while(1){
-		
+/*		
 		pthread_mutex_lock(&not_bye_mx);
 		if(not_bye == false){
 			pthread_mutex_unlock(&not_bye_mx);
 			break;
 		}
 		pthread_mutex_unlock(&not_bye_mx);
-
+*/
 		recvfrom(cli_sockfd,&packet,sizeof(Packet),MSG_WAITALL,(struct sockaddr *) &servaddr,&len_servaddr);
 		
 		//print_packet(stdout,&(in_window[packet.seq_no].packet));
@@ -148,8 +149,16 @@ void* client_receiver(void*){
 					fprintf(stdin,"Packet assign failed \n");
 				
 				//print_msg(stdout,packet_to_msg(&packet));
-				print_packet(stdout,&(in_window[packet.seq_no].packet));
+				//print_packet(stdout,&(in_window[packet.seq_no].packet));
 				sendto(cli_sockfd, (make_ack(packet.seq_no)),sizeof(Packet),0,(const struct sockaddr *) &servaddr,len_servaddr);
+
+				int i=printed_last+1;
+				while(in_window[i].packet.seq_no >= 0){
+					cout<<in_window[i].packet.data;
+					i++;
+					printed_last++;
+				}
+	
 			}
 			else{
 				sendto(cli_sockfd, (make_ack(packet.seq_no)),sizeof(Packet),0,(const struct sockaddr *) &servaddr,len_servaddr);
@@ -198,18 +207,18 @@ void* stdin_reader(void*){
 	
 
 	while(1){
-
+/*
 		pthread_mutex_lock(&not_bye_mx);
 		if(not_bye == false){
 			pthread_mutex_unlock(&not_bye_mx);
 			break;
 		}
 		pthread_mutex_unlock(&not_bye_mx);
-
+*/
 		string aux;
 
 		getline(cin,aux);
-		aux+="\n";
+		if(aux.length() > MAX_DATA_SIZE-2) aux+="\n";
 		pthread_mutex_unlock(&send_mutex);
 		if(aux == "BYE"){
 			pthread_mutex_lock(&not_bye_mx);
@@ -234,6 +243,7 @@ void* time_out(void*){
 
 
 	while(1){
+/*		
 		pthread_mutex_lock(&not_bye_mx);
 		if(not_bye == false){
 			pthread_mutex_unlock(&not_bye_mx);
@@ -241,7 +251,8 @@ void* time_out(void*){
 		}		
 		//sleep(15)
 		pthread_mutex_unlock(&not_bye_mx);
-		//pthread_mutex_lock(&out_window_mx);
+*/		
+		pthread_mutex_lock(&out_window_mx);
 
 		for(int i=0;i<MAX_PACKET_NUM;i++){
 			
@@ -269,8 +280,8 @@ void* time_out(void*){
 			
 			
 		}
-		//pthread_mutex_unlock(&out_window_mx);
-		//sleep(0.01);
+		pthread_mutex_unlock(&out_window_mx);
+		sleep(0.001);
 		//sleep(1);
 		//fprintf(time,"--------------------------\n");
 	}
