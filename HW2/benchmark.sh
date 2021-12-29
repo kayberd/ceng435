@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# IMPORTANT: make sure that troll, server and client take command line arguments
+# according to your setup (edit the order of port numbers if they are different)
+
 # Disclaimer: This script (as with any other bash script) is hacky and messy,
 # you might need to play around with the variables, kill server/client
 # programs that might stick around (you can check them using ps from the same
@@ -11,7 +14,7 @@ killall troll
 
 # input to client and server may have different lengths
 # this is used to synchronize them
-byebuffer=2
+byebuffer=4
 
 down_file()
 {
@@ -29,10 +32,11 @@ chatter()
     echo "start chatter at ${1::-1} for $2"
     while IFS= read -r line; do
         printf '%s\n' "$line" > "$1"
+        sleep 1  # TODO: you can increase this to avoid errors
     done < "$2"
     sleep $byebuffer # synchronization
     printf '%s\n' "BYE" > "$1"
-    echo "chatter finished"
+    echo "chatter finished for ${1::-1}"
 }
 
 run_test()
@@ -53,9 +57,11 @@ run_test()
     if diff "$2" client_out; then
         if diff "$1" server_out; then
             echo "case passed!"
+        else
+            echo "server output wrong, case failed"
         fi
     else
-        echo "case failed"
+        echo "client output wrong, case failed"
     fi
 
     printf '%s ms\n' $elapsed
@@ -67,10 +73,14 @@ hack="nighhack"
 hackurl="http://textfiles.com/100/nighhack.omn"
 actung="actung"
 actungurl="http://textfiles.com/100/actung.hum"
-crime="crime"
-crimeurl="https://www.gutenberg.org/files/2600/2600-0.txt"
+art="art"
+arturl="http://textfiles.com/100/arttext.fun"
+artmate="artmate"
+artmateurl="http://textfiles.com/100/bofh.1"
 bugs="bugs"
 bugsurl="http://textfiles.com/anarchy/electronic.bugs"
+daffy="daffy" # mate of bugs
+daffyurl="http://textfiles.com/100/bhbb1.hac"
 ## you can add your own!
 
 if ! [ -f $simplefile ]; then
@@ -92,8 +102,10 @@ fi
 
 down_file $hack $hackurl
 down_file $actung $actungurl
-down_file $crime $crimeurl
+down_file $art $arturl
+down_file $artmate $artmateurl
 down_file $bugs $bugsurl
+down_file $daffy $daffyurl
 
 # named pipes, create now write later
 mkfifo server0
@@ -135,7 +147,7 @@ case $1 in
         garble=20
         dup=10
         clientinput=$actung
-        serverinput=$loremfile
+        serverinput=$actung
         ;;
 
     hack)
@@ -145,7 +157,7 @@ case $1 in
         capacity=32
         speed=5
         clientinput=$hack
-        serverinput=$loremfile
+        serverinput=$hack
         ;;
 
     bugs)
@@ -156,18 +168,18 @@ case $1 in
         drop=30
         speed=5
         clientinput=$bugs
-        serverinput=$loremfile
+        serverinput=$daffy
         ;;
 
-    crime)
-        echo "crime"
-        garble=10
-        capacity=64
+    art)
+        echo "art"
+        garble=0
+        capacity=32
         dup=1
         drop=20
         speed=1
-        clientinput=$crime
-        serverinput=$loremfile
+        clientinput=$artF
+        serverinput=$artmate
         ;;
 
     *)
@@ -177,7 +189,7 @@ case $1 in
         printf '\t%s\n' "actung"
         printf '\t%s\n' "hack"
         printf '\t%s\n' "bugs"
-        printf '\t%s\n' "crime"
+        printf '\t%s\n' "art"
         exit
 esac
 

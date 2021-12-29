@@ -22,9 +22,9 @@ using namespace std;
 
 //#define SERV_PORT 1881
 //#define CLI_PORT  1938
-#define WIN_SIZE 16
+#define WIN_SIZE 32
 #define MAX_PACKET_NUM 4096
-#define TIMEOUT 100 //timeout currently 1000ms 1s
+#define TIMEOUT 700 //timeout currently 1000ms 1s
 
 // Driver code
 
@@ -95,13 +95,6 @@ int msg_to_packet(string msg,PacketArrayNode* packets){
     return packet_count;
 }
 
-string& packet_to_msg(Packet* packet){
-    string msg;
-    for(int i=0;i<MAX_DATA_SIZE;i++){
-        msg[i] = packet->data[i];
-    }
-    return msg;
-}
 
 void print_packet(FILE* fp,Packet* packet){
     if(packet->ack_no == -1)
@@ -161,8 +154,23 @@ void set_init_time(PacketArrayNode& packetNode){
     packetNode.send_time = ms;
 }
 
+void create_init_packet(Packet& packet){
 
+    packet.ack_no = -1;
+    packet.seq_no = -3;
+    packet.checksum = -4;
+    for(int i=0;i<MAX_DATA_SIZE;i++)
+        packet.data[i]=0;
+    
 
+}
+bool is_bye(Packet& packet){
+   
+    if(packet.data[0] == 'B' && packet.data[1] == 'Y' && packet.data[2] == 'E' && packet.data[3] == '\n')
+        return true;
+    else
+        return false;
+}
 
 
 
