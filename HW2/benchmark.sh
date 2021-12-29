@@ -32,7 +32,7 @@ chatter()
     echo "start chatter at ${1::-1} for $2"
     while IFS= read -r line; do
         printf '%s\n' "$line" > "$1"
-        sleep 1  # TODO: you can increase this to avoid errors
+        sleep 0.5  # TODO: you can increase this to avoid errors
     done < "$2"
     sleep $byebuffer # synchronization
     printf '%s\n' "BYE" > "$1"
@@ -178,7 +178,7 @@ case $1 in
         dup=1
         drop=20
         speed=1
-        clientinput=$artF
+        clientinput=$art
         serverinput=$artmate
         ;;
 

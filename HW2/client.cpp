@@ -38,7 +38,7 @@ void* client_sender(void*){
 	Packet init_packet;
 	create_init_packet(init_packet);
 
-	for(int i=0;i<10;i++)
+	for(int i=0;i<20;i++)
 		sendto(cli_sockfd, &init_packet,sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
 
 
@@ -50,9 +50,7 @@ void* client_sender(void*){
 
 
 
-		pthread_mutex_lock(&out_buffer_mx);
 		int packet_count = msg_to_packet(out_buffer,out_window);
-		pthread_mutex_unlock(&out_buffer_mx);
 		
 		for(int i=0;i<packet_count;i++){
 
@@ -60,13 +58,10 @@ void* client_sender(void*){
 			int k=0;
 			while(1){
 				k++;
-				pthread_mutex_lock(&acked_min_mx);
 				if((SENT_LAST-ACKED_MIN <= WIN_SIZE)){
-					pthread_mutex_unlock(&acked_min_mx);
 					break;
 				} 
 
-				pthread_mutex_unlock(&acked_min_mx);
 				sleep(0.001);
 			}
 
@@ -74,12 +69,12 @@ void* client_sender(void*){
 			
 			
 			//printf("%d\n",SENT_LAST);
-			pthread_mutex_lock(&out_window_mx);
+			//pthread_mutex_lock(&out_window_mx);
 			set_init_time(out_window[SENT_LAST]);
 			sendto(cli_sockfd, &(out_window[SENT_LAST+1].packet),sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
 			SENT_LAST++;
 
-			pthread_mutex_unlock(&out_window_mx);
+			//pthread_mutex_unlock(&out_window_mx);
 
 			
 			//SENT_LAST = SEQ_NUM;
@@ -105,15 +100,15 @@ void* client_receiver(void*){
 		
 
 		if(check_packet_checksum(packet) == false){
-			sleep(0.01);
+			//sleep(0.01);
 			continue;
 		}
 
 		if(packet.ack_no == -1){//DATA PACKET
 			
 			if(in_window[packet.seq_no].packet.seq_no == -2){//ORIGINAL PACKET
-				if(assign_packet(&(in_window[packet.seq_no].packet),&packet) == -1)
-					fprintf(stdin,"Packet assign failed \n");
+				assign_packet(&(in_window[packet.seq_no].packet),&packet);
+				
 				
 
 				int i=printed_last+1;
@@ -136,18 +131,18 @@ void* client_receiver(void*){
 		
 		else{//ACK PACKET
 			
-			pthread_mutex_lock(&out_window_mx);
+			//pthread_mutex_lock(&out_window_mx);
 			if(out_window[packet.ack_no].is_acked == 1){//DUP ACKED
 				//printf("DUP-ACKED:%d\n",packet.ack_no);
 
-				pthread_mutex_unlock(&out_window_mx);
+				//pthread_mutex_unlock(&out_window_mx);
 				continue;
 			}
 			else{
 				out_window[packet.ack_no].is_acked = 1; //ORIGINAL ACK
 			}
 			
-			pthread_mutex_unlock(&out_window_mx);
+			//pthread_mutex_unlock(&out_window_mx);
 
 		}
 
@@ -182,7 +177,6 @@ void* stdin_reader(void*){
 
 		//pthread_mutex_lock(&out_buffer_mx);
 		out_buffer=aux;
-		pthread_mutex_unlock(&out_buffer_mx);
 
 	}
 
@@ -192,32 +186,29 @@ void* time_out(void*){
 
 	struct timeval tp;
 	long int curr_time_ms;
-	
+	bool acked_min_flag;
 
 
 	while(1){
 		
 
 		//pthread_mutex_lock(&out_window_mx);
-
+		acked_min_flag = true;
 		for(int i=0;i<MAX_PACKET_NUM;i++){
 			
 			if(out_window[i].is_acked==1 || out_window[i].is_acked == -1){
 				
 				continue;
 			}
-			
+			if(out_window[i].is_acked == 0 && i-1 > ACKED_MIN && acked_min_flag){
+				ACKED_MIN = i-1;
+				acked_min_flag=false;
+			}
 			gettimeofday(&tp, NULL);
 			curr_time_ms = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 			
 			if(curr_time_ms-out_window[i].send_time >= TIMEOUT){
 				
-				
-	
-				pthread_mutex_lock(&acked_min_mx);
-				if(out_window[i].packet.seq_no-1 > ACKED_MIN)
-					ACKED_MIN = out_window[i].packet.seq_no-1;
-				pthread_mutex_unlock(&acked_min_mx);
 
 				set_init_time(out_window[i]);
 				sendto(cli_sockfd, &(out_window[i].packet),sizeof(Packet),0,(const struct sockaddr *) &servaddr,sizeof(servaddr));
@@ -225,8 +216,12 @@ void* time_out(void*){
 			
 			
 		}
+
+		for(int i=0;i<MAX_PACKET_NUM;i++){
+			
+		}
 		//pthread_mutex_unlock(&out_window_mx);
-		sleep(0.01);
+		sleep(0.0001);
 
 	}
 
@@ -287,7 +282,7 @@ int main(int argc,char** argv) {
 
 	while(!_terminate_);
 
-	//sleep(5);
+	//sleep(15);
 
 
 	pthread_cancel(th1);
