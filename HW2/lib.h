@@ -22,9 +22,9 @@ using namespace std;
 
 //#define SERV_PORT 1881
 //#define CLI_PORT  1938
-#define WIN_SIZE 64
+#define WIN_SIZE 128
 #define MAX_PACKET_NUM 2048
-#define TIMEOUT 600 //timeout currently 1000ms 1s
+#define TIMEOUT 100 //timeout currently 1000ms 1s
 
 // Driver code
 

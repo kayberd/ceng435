@@ -32,7 +32,7 @@ chatter()
     echo "start chatter at ${1::-1} for $2"
     while IFS= read -r line; do
         printf '%s\n' "$line" > "$1"
-        sleep 0.5  # TODO: you can increase this to avoid errors
+        sleep 0.2  # TODO: you can increase this to avoid errors
     done < "$2"
     sleep $byebuffer # synchronization
     printf '%s\n' "BYE" > "$1"

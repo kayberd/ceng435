@@ -111,15 +111,15 @@ void* client_receiver(void*){
 				
 				
 
+
+
+				sendto(cli_sockfd, (make_ack(packet.seq_no)),sizeof(Packet),0,(const struct sockaddr *) &servaddr,len_servaddr);
 				int i=printed_last+1;
 				while(in_window[i].packet.seq_no >= 0){
 					cout<<in_window[i].packet.data;
 					i++;
 					printed_last++;
 				}
-
-				sendto(cli_sockfd, (make_ack(packet.seq_no)),sizeof(Packet),0,(const struct sockaddr *) &servaddr,len_servaddr);
-
 			
 			}
 			else{

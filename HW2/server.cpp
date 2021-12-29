@@ -50,9 +50,7 @@ void* server_sender(void*){
 		for(int i=0;i<packet_count;i++){
 
 	
-			int k=0;
 			while(1){
-				k++;
 				if((SENT_LAST-ACKED_MIN <= WIN_SIZE)){
 					break;
 				} 
