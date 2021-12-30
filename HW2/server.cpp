@@ -102,7 +102,8 @@ void* server_receiver(void*){
 			if(in_window[packet.seq_no].packet.seq_no == -2){//ORIGINAL PACKET
 				assign_packet(&(in_window[packet.seq_no].packet),&packet);
 				
-			
+				sendto(serv_sockfd, (make_ack(packet.seq_no)),sizeof(Packet),0,(const struct sockaddr *) &cliaddr,len_cliaddr);
+
 				int i=printed_last+1;
 				while(in_window[i].packet.seq_no >= 0){
 					cout<<in_window[i].packet.data;
@@ -112,7 +113,6 @@ void* server_receiver(void*){
 	
 
 
-				sendto(serv_sockfd, (make_ack(packet.seq_no)),sizeof(Packet),0,(const struct sockaddr *) &cliaddr,len_cliaddr);
 			}
 			else{
 				sendto(serv_sockfd, (make_ack(packet.seq_no)),sizeof(Packet),0,(const struct sockaddr *) &cliaddr,len_cliaddr);
@@ -167,10 +167,10 @@ void* stdin_reader(void*){
 
 		}
 
-		pthread_mutex_unlock(&send_mutex);
+		
 
 		out_buffer=aux;
-
+		pthread_mutex_unlock(&send_mutex);
 	}
 
 }
@@ -178,7 +178,7 @@ void* stdin_reader(void*){
 void* time_out(void*){
 
 	struct timeval tp;
-	long int curr_time_ms;
+	long long int curr_time_ms;
 	bool acked_min_flag;
 
 
@@ -215,7 +215,7 @@ void* time_out(void*){
 		//pthread_mutex_unlock(&out_window_mx);
 
 
-		sleep(0.0001);
+		//sleep(0.001);
 
 	}
 	

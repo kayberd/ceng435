@@ -23,7 +23,7 @@ using namespace std;
 //#define SERV_PORT 1881
 //#define CLI_PORT  1938
 #define WIN_SIZE 128
-#define MAX_PACKET_NUM 2048
+#define MAX_PACKET_NUM 1024
 #define TIMEOUT 100 //timeout currently 1000ms 1s
 
 // Driver code
@@ -150,7 +150,7 @@ void dump_window(PacketArrayNode* window){
 void set_init_time(PacketArrayNode& packetNode){
     struct timeval tp;
     gettimeofday(&tp, NULL);
-    long int ms = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    long long int ms = tp.tv_sec * 1000 + tp.tv_usec / 1000;
     packetNode.send_time = ms;
 }
 

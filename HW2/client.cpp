@@ -163,7 +163,7 @@ void* stdin_reader(void*){
 		
 
 		getline(cin,aux);
-		pthread_mutex_unlock(&send_mutex);
+		
 
 		if(aux == "BYE"){
 			//some exit code
@@ -177,6 +177,7 @@ void* stdin_reader(void*){
 
 		//pthread_mutex_lock(&out_buffer_mx);
 		out_buffer=aux;
+		pthread_mutex_unlock(&send_mutex);
 
 	}
 
@@ -185,7 +186,7 @@ void* stdin_reader(void*){
 void* time_out(void*){
 
 	struct timeval tp;
-	long int curr_time_ms;
+	long long int curr_time_ms;
 	bool acked_min_flag;
 
 
@@ -217,11 +218,9 @@ void* time_out(void*){
 			
 		}
 
-		for(int i=0;i<MAX_PACKET_NUM;i++){
-			
-		}
+
 		//pthread_mutex_unlock(&out_window_mx);
-		sleep(0.0001);
+		//sleep(0.001);
 
 	}
 
