@@ -15,18 +15,14 @@
 #include <pthread.h>
 
 using namespace std;
-#define MAX_SEQ_NUM WIN_SIZE*2
 #define MAX_DATA_SIZE 8
 
 
 
-//#define SERV_PORT 1881
-//#define CLI_PORT  1938
 #define WIN_SIZE 128
 #define MAX_PACKET_NUM 1024
 #define TIMEOUT 100 //timeout currently 1000ms 1s
 
-// Driver code
 
 extern int SEQ_NUM;
 
@@ -44,10 +40,7 @@ typedef struct PacketArrayNode{
 }PacketArrayNode;
 
 
-/* 
-    Below code is taken from https://gist.github.com/1995eaton/06ee2dfe7f83ce0d2e7d
-    It reads a stdin for dynamic buffer value
-*/
+
 string& packet_to_msg(Packet*);
 void print_packet(FILE*,Packet*);
 
@@ -56,9 +49,7 @@ int msg_to_packet(string msg,PacketArrayNode* packets){
     int packet_count = (int) ceil(msg.length()/8.0);
     
 
-    //cout << msg.length() << endl;
     for(int i=0;i<packet_count;i++){
-        //printf("SEQ_NUM:%d\n",SEQ_NUM);
         packets[SEQ_NUM].packet.seq_no=SEQ_NUM;
         packets[SEQ_NUM].packet.ack_no=-1;
         packets[SEQ_NUM].packet.checksum = SEQ_NUM-1;
@@ -106,7 +97,6 @@ void print_msg(FILE* stream,string msg){
     if(msg.length() > 0)
         for(int i=0;i<MAX_DATA_SIZE;i++)
             fprintf(stream,"%c",msg[i]);
-    //stream << msg;
 }
 bool check_packet_checksum(Packet packet){
     int checked_sum = 0;
@@ -138,13 +128,6 @@ int assign_packet(Packet* lhs,Packet* rhs){
     }
     return -1;
 }
-void dump_window(PacketArrayNode* window){
-
-    for(int i=0;i<SEQ_NUM;i++){
-        print_packet(stdout,&(window[i].packet));
-    }
-}
-
 			
 
 void set_init_time(PacketArrayNode& packetNode){
@@ -163,13 +146,6 @@ void create_init_packet(Packet& packet){
         packet.data[i]=0;
     
 
-}
-bool is_bye(Packet& packet){
-   
-    if(packet.data[0] == 'B' && packet.data[1] == 'Y' && packet.data[2] == 'E' && packet.data[3] == '\n')
-        return true;
-    else
-        return false;
 }
 
 
